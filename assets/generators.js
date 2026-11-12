@@ -62,20 +62,26 @@
   // 기억 용량 비교
   G1.push(function () {
     var mbList = [256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144];
-    var chosen = shuffle(mbList).slice(0, 4);
     var big = Math.random() < 0.5;
-    var fmt = function (mb) {
-      var u = pick(['KB', 'MB', 'GB']);
-      if (u === 'KB') return { s: comma(mb * 1024) + 'KB', mb: mb };
-      if (u === 'GB') return { s: (mb / 1024) + 'GB', mb: mb };
-      return { s: comma(mb) + 'MB', mb: mb };
+    var fmt = function (mb, u) {
+      if (u === 'KB') return { s: comma(mb * 1024) + 'KB', mb: mb, face: mb * 1024 };
+      if (u === 'GB') return { s: (mb / 1024) + 'GB', mb: mb, face: mb / 1024 };
+      return { s: comma(mb) + 'MB', mb: mb, face: mb };
     };
-    var items = chosen.map(fmt);
-    var target = items.reduce(function (p, x) { return (big ? x.mb > p.mb : x.mb < p.mb) ? x : p; });
+    var items, target, tries = 0;
+    // KB·MB·GB가 반드시 섞이고, 겉보기 숫자만 비교하면 틀리도록 만든다
+    do {
+      var chosen = shuffle(mbList).slice(0, 4);
+      var units = shuffle(['KB', 'MB', 'GB', pick(['KB', 'MB', 'GB'])]);
+      items = chosen.map(function (mb, i) { return fmt(mb, units[i]); });
+      target = items.reduce(function (p, x) { return (big ? x.mb > p.mb : x.mb < p.mb) ? x : p; });
+      var naive = items.reduce(function (p, x) { return (big ? x.face > p.face : x.face < p.face) ? x : p; });
+    } while (naive === target && ++tries < 200);
     var o = items.map(function (x) { return x.s; });
     var e = items.map(function (x) {
-      var conv = comma(x.mb) + 'MB(' + (x.mb / 1024) + 'GB)';
-      return (x === target ? '정답. ' : '') + x.s + '를 MB로 환산하면 ' + conv + (x === target ? '로 보기 중 ' + (big ? '가장 크다.' : '가장 작다.') : '이다.');
+      var u = x.s.slice(-2), gb = (x.mb / 1024) + 'GB', mb = comma(x.mb) + 'MB';
+      var conv = u === 'KB' ? x.s + ' ÷ 1,024 = ' + mb + '(' + gb + ')' : (u === 'GB' ? x.s + ' × 1,024 = ' + mb : x.s + ' = ' + gb);
+      return (x === target ? '정답. ' : '') + conv + (x === target ? '로 보기 중 ' + (big ? '가장 크다.' : '가장 작다.') : '이다.');
     });
     var q = '다음 중 기억 용량이 ' + (big ? '가장 큰' : '가장 작은') + ' 것은? (단, 1KB=1,024Byte, 1MB=1,024KB, 1GB=1,024MB)';
     return Q('g1-unit-' + o.join('|') + big, '자료 표현 · 기억 용량', q, '', { o: o, e: e, a: items.indexOf(target) });
@@ -100,19 +106,32 @@
     return Q('g1-ip-' + ip, '인터넷 · IPv4 주소', 'IPv4 주소 ' + ip + '가 속하는 클래스로 옳은 것은?', '', { o: o, e: e, a: keys.indexOf(cls) });
   });
 
-  // 비압축 이미지 용량
+  // 비트 수와 표현 가능한 개수(색상 수)
   G1.push(function () {
-    var res = pick([[640, 480], [800, 600], [1024, 768], [1280, 720], [1280, 1024]]);
-    var bits = pick([8, 16, 24]);
-    var w = res[0], h = res[1];
-    var bytes = w * h * bits / 8;
-    var colors = { 8: '256색', 16: '65,536색', 24: '16,777,216색(트루 컬러)' }[bits];
-    var corr = { v: comma(bytes) + ' Byte', e: '정답. 용량 = 가로 × 세로 × 픽셀당 비트 ÷ 8 = ' + w + '×' + h + '×' + bits + '÷8 = ' + comma(bytes) + 'Byte. (' + bits + '비트는 ' + colors + ')' };
-    var c = [{ v: comma(w * h * bits) + ' Byte', e: '비트 수를 바이트로 바꾸지 않은 값이다. 8로 나누어야 한다.' }];
-    [8, 16, 24].forEach(function (b2) { if (b2 !== bits) c.push({ v: comma(w * h * b2 / 8) + ' Byte', e: '픽셀당 ' + b2 + '비트로 계산했을 때의 용량이다. 문제는 ' + bits + '비트이다.' }); });
-    var b = build(corr, c, function () { var k = pick([2, 4]); return { v: comma(bytes * k) + ' Byte', e: '정답의 ' + k + '배로 계산된 잘못된 값이다.' }; });
-    var q = '해상도가 ' + w + '×' + h + '이고 한 픽셀을 ' + bits + '비트로 표현하는 비압축 이미지 1장의 용량은?';
-    return Q('g1-img-' + w + 'x' + h + 'b' + bits, '멀티미디어 · 이미지 용량', q, '', b);
+    var pw = function (k) { return comma(Math.pow(2, k)); };
+    if (Math.random() < 0.5) {
+      var n = pick([3, 4, 5, 6, 8, 16, 24]);
+      var corr = { v: pw(n) + '가지', e: '정답. n비트로 표현할 수 있는 경우의 수는 2^n이므로 2^' + n + ' = ' + pw(n) + '가지이다.' + (n === 24 ? ' (트루 컬러)' : '') };
+      var c = [
+        { v: comma(n * 2) + '가지', e: '2 × ' + n + '처럼 곱셈으로 계산한 값이다. 경우의 수는 2를 ' + n + '번 곱한 2^' + n + '이다.' },
+        { v: pw(n - 1) + '가지', e: '2^' + (n - 1) + '로, ' + (n - 1) + '비트로 표현할 수 있는 개수이다.' },
+        { v: pw(n + 1) + '가지', e: '2^' + (n + 1) + '로, ' + (n + 1) + '비트로 표현할 수 있는 개수이다.' },
+        { v: comma(n * n) + '가지', e: n + '^2로 계산한 값이다. 밑과 지수를 바꾸어 계산하면 안 된다.' }
+      ];
+      var b = build(corr, c, function () { var k = n + pick([2, 3]); return { v: pw(k) + '가지', e: k + '비트로 표현할 수 있는 개수이다.' }; });
+      return Q('g1-bits-n' + n, '멀티미디어 · 색상 표현', '한 픽셀을 ' + n + '비트로 표현할 때 나타낼 수 있는 색상의 수는?', '', b);
+    }
+    var k = ri(2, 8);
+    var cnt = ri(Math.pow(2, k - 1) + 1, Math.pow(2, k));
+    var corr2 = { v: k + '비트', e: '정답. ' + k + '비트는 2^' + k + ' = ' + pw(k) + '가지를 표현하므로 ' + comma(cnt) + '가지를 모두 표현할 수 있고, ' + (k - 1) + '비트(' + pw(k - 1) + '가지)로는 부족하다.' };
+    var c2 = [
+      { v: (k - 1) + '비트', e: (k - 1) + '비트는 ' + pw(k - 1) + '가지만 표현하므로 ' + comma(cnt) + '가지를 모두 표현할 수 없다.' },
+      { v: (k + 1) + '비트', e: (k + 1) + '비트로도 표현할 수 있지만 최소 비트 수는 아니다.' },
+      { v: (k + 2) + '비트', e: (k + 2) + '비트로도 표현할 수 있지만 최소 비트 수는 아니다.' }
+    ];
+    if (k - 2 >= 1) c2.push({ v: (k - 2) + '비트', e: (k - 2) + '비트는 ' + pw(k - 2) + '가지만 표현하므로 부족하다.' });
+    var b2 = build(corr2, c2, function () { return { v: (k + 3) + '비트', e: '최소 비트 수가 아니다.' }; });
+    return Q('g1-bits-c' + cnt, '자료 표현 · 비트 수', '서로 다른 ' + comma(cnt) + '가지 색상(또는 문자)을 구별하여 표현하려면 최소 몇 비트가 필요한가?', '', b2);
   });
 
   /* ───────── 2과목 ───────── */

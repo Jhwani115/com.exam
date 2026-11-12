@@ -3,6 +3,21 @@
   'use strict';
   window.QBANK = { 1: [], 2: [], 3: [] };
   window.QGEN = { 1: [], 2: [], 3: [] };
+  window.PASTSETS = [];
+
+  /* 2026 기출 유형 시험지: 60문항 고정 순서 (1~20 1과목, 21~40 2과목, 41~60 3과목) */
+  window.addPast = function (title, desc, list) {
+    var n = PASTSETS.length;
+    var seed = 7919 * (n + 1);
+    var rnd = function () { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+    PASTSETS.push({ title: title, desc: desc, qs: list.map(function (x, i) {
+      /* 보기 순서를 회차·문항마다 정해진 방식으로 섞어 정답 위치를 고르게 한다 (매번 같은 순서) */
+      var perm = [0, 1, 2, 3];
+      for (var k = 3; k > 0; k--) { var j = Math.floor(rnd() * (k + 1)); var t = perm[k]; perm[k] = perm[j]; perm[j] = t; }
+      return { id: 'p' + n + '-' + (i + 1), subj: i < 20 ? 1 : (i < 40 ? 2 : 3), t: x[0], q: x[1],
+        o: perm.map(function (p) { return x[2][p]; }), e: perm.map(function (p) { return x[4][p]; }), a: perm.indexOf(x[3] - 1), h: x[5] || '' };
+    }) });
+  };
 
   /* 문항 형식: [주제, 질문, [보기1~4], 정답번호(1~4), [보기별 해설1~4], 추가HTML(선택)] */
   window.addQ = function (subj, list) {

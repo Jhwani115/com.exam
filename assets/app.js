@@ -77,7 +77,7 @@
 
   /* ── 공통 ── */
   function setView(v) {
-    if (E && !E.done && v !== 'exam') {
+    if (E && !E.done && v !== E.view) {
       modal('모의고사를 그만둘까요?', '진행 중인 실전 모의고사가 종료되고 답안은 저장되지 않습니다.', '그만두기', function () {
         stopTimer(); E = null; go(v);
       });
@@ -94,7 +94,7 @@
   function render(keepScroll) {
     var y = window.scrollY;
     if (view === 'home') renderHome();
-    else if (view === 'exam') renderExam();
+    else if (view === 'exam' || view === 'past') renderExam();
     else renderPractice(+view.slice(1));
     if (keepScroll) window.scrollTo(0, y);
   }
@@ -152,7 +152,10 @@
       '<div class="cards">' + cards +
       '<button class="card exam" data-go="exam"><span class="card-kicker">실전 모의고사</span><span class="card-title">전 과목 60문제 · 60분</span>' +
       '<span class="card-desc">실제 시험처럼 시간 안에 풀고 제출하면 채점 결과와 해설, 합격 여부를 보여 줍니다.</span>' +
-      '<span class="card-foot">시험 시작하기 <span aria-hidden="true">→</span></span></button></div>' +
+      '<span class="card-foot">시험 시작하기 <span aria-hidden="true">→</span></span></button>' +
+      '<button class="card exam" data-go="past"><span class="card-kicker">2026 기출 유형</span><span class="card-title">상시 기출 유형 3회분</span>' +
+      '<span class="card-desc">2026년 상시 기출과 같은 순서·주제·유형으로 만든 고정 시험지를 60분 동안 풉니다.</span>' +
+      '<span class="card-foot">회차 고르기 <span aria-hidden="true">→</span></span></button></div>' +
       '<section class="info"><h2>시험 안내</h2><dl>' +
       '<div><dt>문항 수</dt><dd>과목당 20문항, 총 60문항 (4지 선다)</dd></div>' +
       '<div><dt>시험 시간</dt><dd>60분</dd></div>' +
@@ -236,10 +239,17 @@
   function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
   function fmtTime(ms) { var t = Math.max(0, Math.ceil(ms / 1000)); var m = Math.floor(t / 60), s = t % 60; return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0'); }
 
-  function startExam() {
-    var qs = [];
-    [1, 2, 3].forEach(function (s) { qs = qs.concat(drawSet(s).qs); });
-    E = { qs: qs, ans: new Array(60).fill(null), idx: 0, endAt: Date.now() + EXAM_MIN * 60000, done: false, filter: 'all', subjF: 0, sheetOpen: false };
+  function startExam(setIdx) {
+    var qs = [], title = '실전 모의고사';
+    if (typeof setIdx === 'number') {
+      var ps = window.PASTSETS[setIdx];
+      qs = ps.qs.slice();
+      title = ps.title;
+    } else {
+      [1, 2, 3].forEach(function (s) { qs = qs.concat(drawSet(s).qs); });
+    }
+    E = { qs: qs, ans: new Array(60).fill(null), idx: 0, endAt: Date.now() + EXAM_MIN * 60000, done: false, filter: 'all', subjF: 0, sheetOpen: false,
+      view: view, setIdx: setIdx, title: title };
     stopTimer();
     timerId = setInterval(function () {
       if (!E || E.done) return stopTimer();
@@ -270,7 +280,7 @@
   }
 
   function renderExam() {
-    if (!E) return renderExamIntro();
+    if (!E || E.view !== view) return view === 'past' ? renderPastIntro() : renderExamIntro();
     if (E.done) return renderExamResult();
     var q = E.qs[E.idx], s = q.subj, chosen = E.ans[E.idx];
     var answered = E.ans.filter(function (x) { return x !== null; }).length;
@@ -292,6 +302,7 @@
 
     app.innerHTML =
       '<section class="exam-view">' +
+      '<p class="ex-title">' + esc(E.title) + '</p>' +
       '<div class="ex-bar"><div class="ex-time' + (left < 5 * 60000 ? ' warn' : '') + '"><span>남은 시간</span><b id="timer">' + fmtTime(left) + '</b></div>' +
       '<div class="ex-count">답안 <b>' + answered + '</b>/60</div>' +
       '<button class="btn primary" id="submit">답안 제출</button></div>' +
@@ -329,7 +340,23 @@
       '<li>60분이 지나면 자동으로 제출됩니다.</li>' +
       '<li>합격 기준: 과목별 40점 이상, 전 과목 평균 60점 이상 (문항당 5점)</li></ul>' +
       '<button class="btn primary big" id="start">시험 시작</button></section>';
-    document.getElementById('start').onclick = startExam;
+    document.getElementById('start').onclick = function () { startExam(); };
+  }
+
+  function renderPastIntro() {
+    var sets = window.PASTSETS || [];
+    var cards = sets.map(function (ps, i) {
+      return '<button class="card past-card" data-p="' + i + '"><span class="card-kicker">60문항 · 60분</span>' +
+        '<span class="card-title">' + esc(ps.title) + '</span><span class="card-desc">' + esc(ps.desc) + '</span>' +
+        '<span class="card-foot">시험 시작</span></button>';
+    }).join('');
+    app.innerHTML =
+      '<section class="intro wide"><span class="kicker">2026 기출 유형</span><h2>2026년 상시 기출 유형 시험지</h2>' +
+      '<p class="lead">2026년 상시 기출의 문항 순서·주제·유형을 따라 새로 작성한 시험지예요. 실제 시험과 같은 순서로 60문항을 60분 동안 풉니다.</p>' +
+      '<ul class="rules"><li>문항 순서와 보기 순서는 고정되어 있어요.</li><li>시험 중에는 해설이 보이지 않고, 제출하면 채점 결과와 보기별 해설이 나와요.</li>' +
+      '<li>합격 기준: 과목별 40점 이상, 평균 60점 이상 (문항당 5점)</li></ul>' +
+      '<div class="cards">' + cards + '</div></section>';
+    app.querySelectorAll('[data-p]').forEach(function (b) { b.onclick = function () { startExam(+b.dataset.p); }; });
   }
 
   function renderExamResult() {
@@ -361,16 +388,18 @@
     var sbtn = function (k, label) { return '<button class="chip-btn' + (E.subjF === k ? ' on' : '') + '" data-s="' + k + '">' + label + '</button>'; };
 
     app.innerHTML =
-      '<section class="result"><div class="res-head ' + (r.pass ? 'pass' : 'fail') + '"><p class="kicker">실전 모의고사 결과</p>' +
+      '<section class="result"><div class="res-head ' + (r.pass ? 'pass' : 'fail') + '"><p class="kicker">' + esc(E.title) + ' 결과</p>' +
       '<h2>' + (r.pass ? '합격' : '불합격') + '</h2><p>' + reason + '</p>' +
       '<div class="res-nums"><div><span>평균</span><b>' + r.avg.toFixed(1) + '</b></div><div><span>맞힌 문제</span><b>' + (r.right[1] + r.right[2] + r.right[3]) + '/60</b></div><div><span>걸린 시간</span><b>' + mm + '분 ' + ss + '초</b></div></div></div>' +
       '<div class="sbars">' + bars + '<p class="cut-note">세로선은 과락 기준(40점)</p></div>' +
-      '<div class="res-actions"><button class="btn primary" id="again">새 모의고사 보기</button><button class="btn ghost" id="home">처음으로</button></div>' +
+      '<div class="res-actions"><button class="btn primary" id="again">' + (E.view === 'past' ? '다시 풀기' : '새 모의고사 보기') + '</button>' + (E.view === 'past' ? '<button class="btn ghost" id="others">다른 회차 보기</button>' : '') + '<button class="btn ghost" id="home">처음으로</button></div>' +
       '<h3 class="rv-title">문제 다시 보기와 해설</h3>' +
       '<div class="filters"><div>' + fbtn('all', '전체') + fbtn('wrong', '틀린 문제만') + '</div><div>' + sbtn(0, '전 과목') + sbtn(1, '1과목') + sbtn(2, '2과목') + sbtn(3, '3과목') + '</div></div>' +
       items + '</section>';
 
-    document.getElementById('again').onclick = function () { E = null; startExam(); };
+    var si = E.setIdx;
+    document.getElementById('again').onclick = function () { E = null; startExam(si); };
+    var oth = document.getElementById('others'); if (oth) oth.onclick = function () { E = null; render(); window.scrollTo(0, 0); };
     document.getElementById('home').onclick = function () { E = null; go('home'); };
     app.querySelectorAll('[data-f]').forEach(function (b) { b.onclick = function () { E.filter = b.dataset.f; render(true); }; });
     app.querySelectorAll('[data-s]').forEach(function (b) { b.onclick = function () { E.subjF = +b.dataset.s; render(true); }; });

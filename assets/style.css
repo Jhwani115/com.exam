@@ -258,3 +258,7 @@ button:disabled { cursor: default; }
 .cell.done { background: var(--primary-soft); border-color: #C9C9D0; }
 .cell.cur { outline-color: var(--ink); }
 .logo { background: var(--ink); color: #fff; }
+
+/* 2026 기출 유형 */
+.intro.wide { max-width: none; }
+.ex-title { margin: 0 0 10px; font-weight: 800; font-size: 15px; color: var(--muted); }
