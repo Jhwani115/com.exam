@@ -1,35 +1,23 @@
-/* 눈이 편한 따뜻한 종이색 + 세이지 그린 */
+/* 연회색 배경 + 흰색 카드 + 검정 포인트 (모노톤) */
 :root {
-  --bg: #f4f1ea;
-  --surface: #fffdf9;
-  --surface-2: #f8f5ef;
-  --ink: #2e3a36;
-  --muted: #6c7772;
-  --line: #e3ded4;
-  --primary: #4d7a6b;
-  --primary-ink: #ffffff;
-  --primary-soft: #e3eee8;
-  --accent: #5b7a96;
-  --ok: #3e8a66;
-  --ok-soft: #e3f1e8;
-  --bad: #b9604f;
-  --bad-soft: #f7e6e1;
-  --warn: #b7832c;
-  --shadow: 0 1px 2px rgba(46, 58, 54, .05), 0 4px 16px rgba(46, 58, 54, .05);
-  --r: 14px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #1d2321; --surface: #252c2a; --surface-2: #2b3330; --ink: #e4e8e3; --muted: #9aa59f; --line: #36403c;
-    --primary: #7fb19f; --primary-ink: #14201b; --primary-soft: #2c3d36; --accent: #8fabc4;
-    --ok: #7cc09c; --ok-soft: #26392f; --bad: #e0907f; --bad-soft: #43302b; --warn: #e0b35f;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .2);
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #1d2321; --surface: #252c2a; --surface-2: #2b3330; --ink: #e4e8e3; --muted: #9aa59f; --line: #36403c;
-  --primary: #7fb19f; --primary-ink: #14201b; --primary-soft: #2c3d36; --accent: #8fabc4;
-  --ok: #7cc09c; --ok-soft: #26392f; --bad: #e0907f; --bad-soft: #43302b; --warn: #e0b35f;
+  color-scheme: light;
+  --bg: #F8F8F9;
+  --surface: #FFFFFF;
+  --surface-2: #F8F8F9;
+  --ink: #121212;
+  --muted: #8A8A93;
+  --line: #E6E6EA;
+  --primary: #121212;
+  --primary-ink: #FFFFFF;
+  --primary-soft: #EFEFF2;
+  --accent: #121212;
+  --ok: #2E8A57;
+  --ok-soft: #EAF5EE;
+  --bad: #D2463C;
+  --bad-soft: #FCEDEB;
+  --warn: #B7832C;
+  --shadow: 0 2px 12px rgba(18, 18, 18, .05);
+  --r: 22px;
 }
 
 * { box-sizing: border-box; }
@@ -45,39 +33,41 @@ button:disabled { cursor: default; }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
 
 /* 헤더 */
-.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.top { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.94); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top); }
 .top-in { max-width: 1080px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.brand { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; font-weight: 700; font-size: 17px; }
+.brand { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
 .logo { background: var(--primary); color: var(--primary-ink); border-radius: 8px; padding: 2px 8px; font-size: 14px; }
 .nav { display: flex; gap: 4px; flex-wrap: wrap; }
 .nav button { background: none; border: 0; padding: 7px 12px; border-radius: 999px; color: var(--muted); font-weight: 600; font-size: 15px; }
 .nav button:hover { color: var(--ink); background: var(--surface-2); }
-.nav button.on { background: var(--primary-soft); color: var(--primary); }
+.nav button.on { background: var(--ink); color: #fff; }
 .nav .nav-exam { border: 1px solid var(--line); }
 
 /* 버튼 */
-.btn { border-radius: 10px; padding: 10px 18px; font-weight: 650; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
+.btn { border-radius: 14px; padding: 11px 20px; font-weight: 700; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
 .btn.primary { background: var(--primary); color: var(--primary-ink); }
-.btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
+.btn.primary:hover:not(:disabled) { background: #2A2A2A; }
 .btn.ghost { background: var(--surface); border-color: var(--line); }
 .btn.ghost:hover:not(:disabled) { background: var(--surface-2); }
 .btn:disabled { opacity: .4; }
-.btn.big { padding: 14px 28px; font-size: 17px; }
+.btn.big { padding: 16px 32px; font-size: 18px; border-radius: 16px; }
 
 /* 홈 */
 .hero { padding: 48px 0 28px; }
-.eyebrow { color: var(--primary); font-weight: 650; font-size: 14px; margin: 0 0 8px; }
-.hero h1 { font-size: clamp(26px, 4.4vw, 38px); line-height: 1.25; margin: 0 0 12px; letter-spacing: -.02em; }
+.eyebrow { color: var(--muted); font-weight: 600; font-size: 14px; margin: 0 0 8px; }
+.hero h1 { font-size: clamp(28px, 4.6vw, 40px); line-height: 1.22; margin: 0 0 12px; letter-spacing: -.03em; font-weight: 800; }
 .lead { color: var(--muted); max-width: 640px; margin: 0; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
 .card { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow); transition: transform .15s, border-color .15s; }
-.card:hover { transform: translateY(-2px); border-color: var(--primary); }
-.card-kicker { font-size: 13px; font-weight: 700; color: var(--primary); }
-.card-title { font-size: 20px; font-weight: 750; }
+.card:hover { transform: translateY(-2px); border-color: #C9C9D0; }
+.card-kicker { font-size: 13px; font-weight: 700; color: var(--muted); }
+.card-title { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
 .card-desc { color: var(--muted); font-size: 14px; flex: 1; }
-.card-foot { margin-top: 8px; font-weight: 650; font-size: 14px; color: var(--primary); }
-.card.exam { background: var(--primary); border-color: var(--primary); }
-.card.exam * { color: var(--primary-ink) !important; }
+.card-foot { margin-top: 12px; font-weight: 700; font-size: 15px; color: #fff; background: var(--ink); border-radius: 14px; padding: 12px 16px; text-align: center; }
+.card.exam { background: var(--ink); border-color: var(--ink); }
+.card.exam .card-foot { background: #fff; color: var(--ink) !important; }
+.card.exam *:not(.card-foot) { color: #fff !important; }
+.card.exam .card-kicker, .card.exam .card-desc { color: rgba(255,255,255,.7) !important; }
 .card.exam .card-desc { opacity: .85; }
 .info { margin: 28px 0 40px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px 22px; }
 .info h2 { font-size: 17px; margin: 0 0 10px; }
@@ -184,14 +174,13 @@ button:disabled { cursor: default; }
 .cell.cur { outline: 2px solid var(--accent); outline-offset: 0; }
 
 /* 결과 */
-.res-head { border-radius: var(--r); padding: 24px; color: #fff; }
-.res-head.pass { background: var(--ok); }
-.res-head.fail { background: var(--bad); }
-.res-head .kicker { color: rgba(255, 255, 255, .85); }
+.res-head { border-radius: var(--r); padding: 26px; }
+.res-head.pass { background: var(--ink); color: #fff; }
+.res-head.fail { background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.res-head.fail h2 { color: var(--bad); }
+.res-head .kicker { color: inherit; opacity: .6; }
 .res-head h2 { font-size: 36px; margin: 2px 0 4px; }
 .res-head p { margin: 0; }
-:root[data-theme="dark"] .res-head, .res-head { color: #fff; }
-@media (prefers-color-scheme: dark) { .res-head { color: #14201b; } .res-head .kicker { color: rgba(20, 32, 27, .75); } }
 .res-nums { display: flex; gap: 28px; margin-top: 16px; flex-wrap: wrap; }
 .res-nums span { display: block; font-size: 13px; opacity: .85; }
 .res-nums b { font-size: 22px; }
@@ -255,3 +244,17 @@ button:disabled { cursor: default; }
   .info dl div { grid-template-columns: 1fr; gap: 0; }
   .r-mark { position: static; margin-bottom: 6px; }
 }
+
+/* 앱 모드(홈 화면) 안전 영역 */
+.foot { padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+.ex-bar { border-radius: 18px; }
+.qcard { border-radius: var(--r); }
+.opt { border-radius: 14px; }
+.dot { border-radius: 10px; }
+.dot.cur { outline-color: var(--ink); }
+.tab.on, .chip-btn.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.bar i { background: var(--ink); }
+.cell b { color: var(--ink); }
+.cell.done { background: var(--primary-soft); border-color: #C9C9D0; }
+.cell.cur { outline-color: var(--ink); }
+.logo { background: var(--ink); color: #fff; }
