@@ -97,7 +97,32 @@
     else if (view === 'exam' || view === 'past') renderExam();
     else renderPractice(+view.slice(1));
     if (keepScroll) window.scrollTo(0, y);
+    saveState();
   }
+
+  /* ── 풀던 상태 저장·복원 ──
+     휴대폰이 백그라운드에서 페이지를 지웠다가 다시 열어도 풀던 문제, 고른 답, 남은 시간이 그대로 돌아오도록 한다. */
+  var STATE_KEY = 'cbt1_state_v1';
+  function saveState() {
+    try {
+      localStorage.setItem(STATE_KEY, JSON.stringify({
+        view: view, P: P, E: E, lastSet: lastSet, genSeen: Array.from(genSeen),
+        y: window.scrollY, at: Date.now()
+      }));
+    } catch (e) { }
+  }
+  function loadState() {
+    try {
+      var d = JSON.parse(localStorage.getItem(STATE_KEY) || 'null');
+      if (!d || typeof d !== 'object') return null;
+      if (Date.now() - (d.at || 0) > 7 * 24 * 3600 * 1000) return null;   /* 일주일 지난 기록은 버림 */
+      return d;
+    } catch (e) { return null; }
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') saveState(); });
+  window.addEventListener('pagehide', saveState);
+  var scrollTimer = null;
+  window.addEventListener('scroll', function () { clearTimeout(scrollTimer); scrollTimer = setTimeout(saveState, 400); }, { passive: true });
 
   function modal(title, body, okText, onOk, cancelText) {
     var m = document.createElement('div');
@@ -250,6 +275,11 @@
     }
     E = { qs: qs, ans: new Array(60).fill(null), idx: 0, endAt: Date.now() + EXAM_MIN * 60000, done: false, filter: 'all', subjF: 0, sheetOpen: false,
       view: view, setIdx: setIdx, title: title };
+    startTimer();
+    render();
+    window.scrollTo(0, 0);
+  }
+  function startTimer() {
     stopTimer();
     timerId = setInterval(function () {
       if (!E || E.done) return stopTimer();
@@ -258,8 +288,6 @@
       if (el) { el.textContent = fmtTime(left); el.parentNode.classList.toggle('warn', left < 5 * 60000); }
       if (left <= 0) { submitExam(true); }
     }, 500);
-    render();
-    window.scrollTo(0, 0);
   }
   function grade() {
     var r = { 1: 0, 2: 0, 3: 0 };
@@ -408,5 +436,30 @@
   /* ── 시작 ── */
   document.querySelectorAll('.nav button').forEach(function (b) { b.onclick = function () { setView(b.dataset.v); }; });
   document.querySelector('.brand').onclick = function () { setView('home'); };
-  go('home');
+
+  var saved = loadState();
+  if (saved && ['home', 's1', 's2', 's3', 'exam', 'past'].indexOf(saved.view) >= 0) {
+    P = saved.P || {};
+    E = saved.E || null;
+    if (saved.lastSet) lastSet = saved.lastSet;
+    (saved.genSeen || []).forEach(function (id) { genSeen.add(id); });
+    view = saved.view;
+    document.querySelectorAll('.nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === view); });
+    if (E && !E.done) {
+      if (E.endAt <= Date.now()) {               /* 앱을 떠나 있는 동안 시험 시간이 끝난 경우 */
+        view = E.view;
+        document.querySelectorAll('.nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === view); });
+        submitExam(true);
+      } else {
+        startTimer();
+        render();
+        window.scrollTo(0, saved.y || 0);
+      }
+    } else {
+      render();
+      window.scrollTo(0, saved.y || 0);
+    }
+  } else {
+    go('home');
+  }
 })();
