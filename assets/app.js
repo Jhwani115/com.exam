@@ -43,15 +43,17 @@
   }
 
   /* 새 문제 세트: 직전 세트·이미 푼 문제를 피해 뽑음 */
-  function drawSet(s) {
+  function drawSet(s, exclude) {
     var bank = QBANK[s], gens = QGEN[s] || [];
     var nGen = gens.length ? GEN_PER_SET : 0, nBank = PER_SET - nGen;
     var used = getUsed(s), cycled = false;
-    var avail = bank.filter(function (q) { return !used.has(q.id); });
+    var ex = exclude || new Set();   /* 지금 화면에 있는 세트는 바로 다음 세트에 다시 나오지 않게 */
+    var ok = function (q) { return !used.has(q.id) && !ex.has(q.id); };
+    var avail = bank.filter(ok);
     if (avail.length < nBank) {
       used.clear();
       lastSet[s].forEach(function (id) { used.add(id); });
-      avail = bank.filter(function (q) { return !used.has(q.id); });
+      avail = bank.filter(ok);
       cycled = true;
     }
     var picked = shuffle(avail).slice(0, nBank);
@@ -148,7 +150,7 @@
   }
 
   /* 문제 본문 */
-  var ICON_SAVE = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="bm" d="M6.5 3.75h11a.75.75 0 0 1 .75.75v15.6l-6.25-4.2-6.25 4.2V4.5a.75.75 0 0 1 .75-.75z"/><path class="ck" d="M9.2 9.6l2 2 3.6-3.8"/></svg>';
+  var ICON_SAVE = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="bm" d="M6.5 3.75h11a.75.75 0 0 1 .75.75v15.6l-6.25-4.2-6.25 4.2V4.5a.75.75 0 0 1 .75-.75z"/></svg>';
   function qBody(q, n, saveIdx) {
     var on = isSaved(q);
     return '<div class="q-head"><span class="q-no">' + n + '</span><span class="tag">' + esc(q.t) + '</span>' +
@@ -197,8 +199,15 @@
 
   /* ── 과목별 연습 ── */
   function newPractice(s) {
-    var d = drawSet(s);
-    P[s] = { qs: d.qs, ans: new Array(PER_SET).fill(null), idx: 0, round: (P[s] ? P[s].round + 1 : 1) };
+    var prev = P[s], cur = new Set(), unsolved = [];
+    if (prev) prev.qs.forEach(function (q, i) {
+      cur.add(q.id);
+      if (prev.ans[i] === null && !q.gen) unsolved.push(q.id);
+    });
+    var d = drawSet(s, cur);
+    /* 풀지 않은 문제는 출제 기록에서 빼서 나중에 다시 나오게 한다 */
+    if (unsolved.length) { var u = getUsed(s); unsolved.forEach(function (id) { u.delete(id); }); saveUsed(s); }
+    P[s] = { qs: d.qs, ans: new Array(PER_SET).fill(null), idx: 0, round: (prev ? prev.round + 1 : 1) };
     if (d.cycled) toast(SUBJ[s].name + ' 문제은행을 한 바퀴 다 풀었어요. 처음부터 다시 섞어 출제합니다.');
   }
   function renderPractice(s) {
@@ -258,7 +267,7 @@
     document.getElementById('next').onclick = function () { if (st.idx < PER_SET - 1) { st.idx++; render(true); } };
     var doRefresh = function () { newPractice(s); render(); window.scrollTo(0, 0); };
     document.getElementById('refresh').onclick = function () {
-      if (done > 0 && !finished) modal('새 문제로 바꿀까요?', '지금 풀고 있는 20문제는 사라지고 새로운 20문제가 출제됩니다.', '새 문제 받기', doRefresh);
+      if (done > 0 && !finished) modal('새 문제로 바꿀까요?', '새로운 20문제가 출제됩니다. 아직 풀지 않은 문제는 남은 새 문제로 돌아가 나중에 다시 나와요.', '새 문제 받기', doRefresh);
       else doRefresh();
     };
     var r2 = document.getElementById('refresh2'); if (r2) r2.onclick = doRefresh;
