@@ -95,6 +95,7 @@
     var y = window.scrollY;
     if (view === 'home') renderHome();
     else if (view === 'exam' || view === 'past') renderExam();
+    else if (view === 'saved') renderSaved();
     else renderPractice(+view.slice(1));
     if (keepScroll) window.scrollTo(0, y);
     saveState();
@@ -139,6 +140,7 @@
     var ok = m.querySelector('[data-x="ok"]'); if (ok) ok.focus();
   }
   function toast(msg) {
+    document.querySelectorAll('.toast').forEach(function (x) { x.remove(); });
     var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(function () { t.classList.add('show'); }, 10);
@@ -146,9 +148,12 @@
   }
 
   /* 문제 본문 */
-  function qBody(q, n) {
+  var ICON_SAVE = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="bm" d="M6.5 3.75h11a.75.75 0 0 1 .75.75v15.6l-6.25-4.2-6.25 4.2V4.5a.75.75 0 0 1 .75-.75z"/><path class="ck" d="M9.2 9.6l2 2 3.6-3.8"/></svg>';
+  function qBody(q, n, saveIdx) {
+    var on = isSaved(q);
     return '<div class="q-head"><span class="q-no">' + n + '</span><span class="tag">' + esc(q.t) + '</span>' +
-      (q.gen ? '<span class="tag calc">계산형</span>' : '') + '</div>' +
+      (q.gen ? '<span class="tag calc">계산형</span>' : '') +
+      '<button class="save-btn' + (on ? ' on' : '') + '" data-save="' + (saveIdx === undefined ? '' : saveIdx) + '" aria-pressed="' + on + '" aria-label="' + (on ? '저장 취소' : '다시 볼 문제로 저장') + '" title="' + (on ? '저장 취소' : '다시 볼 문제로 저장') + '">' + ICON_SAVE + '</button></div>' +
       '<p class="q-text">' + txt(q.q) + '</p>' + (q.h ? '<div class="q-extra">' + q.h + '</div>' : '');
   }
   function explainList(q, chosen) {
@@ -245,8 +250,9 @@
       '</section>';
 
     app.querySelectorAll('.opt').forEach(function (b) {
-      b.onclick = function () { st.ans[st.idx] = +b.dataset.o; render(true); };
+      b.onclick = function () { st.ans[st.idx] = +b.dataset.o; syncSaved(q, st.ans[st.idx]); render(true); };
     });
+    bindSave(function () { return { q: q, my: st.ans[st.idx], src: SUBJ[s].name + ' 연습' }; });
     app.querySelectorAll('.dot').forEach(function (b) { b.onclick = function () { st.idx = +b.dataset.i; render(true); }; });
     document.getElementById('prev').onclick = function () { if (st.idx > 0) { st.idx--; render(true); } };
     document.getElementById('next').onclick = function () { if (st.idx < PER_SET - 1) { st.idx++; render(true); } };
@@ -346,9 +352,11 @@
       b.onclick = function () {
         var v = +b.dataset.o;
         E.ans[E.idx] = E.ans[E.idx] === v ? null : v;
+        syncSaved(q, E.ans[E.idx]);
         render(true);
       };
     });
+    bindSave(function () { return { q: q, my: E.ans[E.idx], src: E.title }; });
     app.querySelectorAll('.cell').forEach(function (b) { b.onclick = function () { E.idx = +b.dataset.i; render(true); }; });
     app.querySelectorAll('.tab').forEach(function (b) { b.onclick = function () { E.idx = (+b.dataset.t - 1) * 20; render(true); }; });
     document.getElementById('prev').onclick = function () { if (E.idx > 0) { E.idx--; render(true); } };
@@ -408,7 +416,7 @@
     var items = list.map(function (x) {
       var q = x.q, a = E.ans[x.i], ok = a === q.a;
       return '<article class="qcard review ' + (ok ? 'r-ok' : 'r-bad') + '"><div class="r-mark">' + (ok ? '정답' : (a === null ? '미표기' : '오답')) + '</div>' +
-        qBody(q, x.i + 1) + '<p class="r-line">내 답: <b>' + (a === null ? '없음' : NUM[a]) + '</b> · 정답: <b>' + NUM[q.a] + '</b></p>' +
+        qBody(q, x.i + 1, x.i) + '<p class="r-line">내 답: <b>' + (a === null ? '없음' : NUM[a]) + '</b> · 정답: <b>' + NUM[q.a] + '</b></p>' +
         '<div class="explain">' + explainList(q, a) + '</div></article>';
     }).join('') || '<p class="empty">해당하는 문제가 없어요.</p>';
 
@@ -431,6 +439,114 @@
     document.getElementById('home').onclick = function () { E = null; go('home'); };
     app.querySelectorAll('[data-f]').forEach(function (b) { b.onclick = function () { E.filter = b.dataset.f; render(true); }; });
     app.querySelectorAll('[data-s]').forEach(function (b) { b.onclick = function () { E.subjF = +b.dataset.s; render(true); }; });
+    bindSave(function (i) { return { q: E.qs[i], my: E.ans[i], src: E.title }; });
+  }
+
+  /* ── 다시 볼 문제 저장 ── */
+  var SAVED_KEY = 'cbt1_saved_v1';
+  var savedMem = null;
+  function savedList() {
+    if (!savedMem) {
+      try { savedMem = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'); } catch (e) { savedMem = []; }
+      if (!Array.isArray(savedMem)) savedMem = [];
+    }
+    return savedMem;
+  }
+  function writeSaved() { try { localStorage.setItem(SAVED_KEY, JSON.stringify(savedList())); } catch (e) { } updateSavedBadge(); }
+  function savedIndex(q) { var L = savedList(); for (var i = 0; i < L.length; i++) if (L[i].k === q.id) return i; return -1; }
+  function isSaved(q) { return !!q && savedIndex(q) >= 0; }
+  function syncSaved(q, my) { var i = savedIndex(q); if (i >= 0) { savedList()[i].my = my; writeSaved(); } }
+  function toggleSaved(info) {
+    var i = savedIndex(info.q);
+    if (i >= 0) { savedList().splice(i, 1); writeSaved(); toast('저장을 취소했어요.'); return false; }
+    savedList().unshift({ k: info.q.id, q: info.q, my: info.my === undefined ? null : info.my, src: info.src || '', at: Date.now() });
+    writeSaved(); toast('저장했어요. ‘저장한 문제’ 탭에서 볼 수 있어요.');
+    return true;
+  }
+  function bindSave(getInfo) {
+    app.querySelectorAll('[data-save]').forEach(function (b) {
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        var raw = b.getAttribute('data-save');
+        var on = toggleSaved(getInfo(raw === '' ? undefined : +raw));
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', on);
+        b.setAttribute('aria-label', on ? '저장 취소' : '다시 볼 문제로 저장');
+        b.title = on ? '저장 취소' : '다시 볼 문제로 저장';
+      };
+    });
+  }
+  function updateSavedBadge() {
+    var b = document.querySelector('.nav [data-v="saved"]');
+    if (b) b.innerHTML = '저장한 문제' + (savedList().length ? ' <span class="badge">' + savedList().length + '</span>' : '');
+  }
+
+  var SV = { f: 'all', s: 0, mode: 'view', tried: {} };
+  function renderSaved() {
+    var L = savedList();
+    var state = function (it) { return it.my === null || it.my === undefined ? 'none' : (it.my === it.q.a ? 'ok' : 'bad'); };
+    var list = L.filter(function (it) {
+      if (SV.s && it.q.subj !== SV.s) return false;
+      if (SV.f === 'wrong') return state(it) === 'bad';
+      if (SV.f === 'right') return state(it) === 'ok';
+      return true;
+    });
+    var cnt = { all: L.length, wrong: 0, right: 0 };
+    L.forEach(function (it) { var st = state(it); if (st === 'bad') cnt.wrong++; if (st === 'ok') cnt.right++; });
+    var fbtn = function (k, label) { return '<button class="chip-btn' + (SV.f === k ? ' on' : '') + '" data-sf="' + k + '">' + label + '</button>'; };
+    var sbtn = function (k, label) { return '<button class="chip-btn' + (SV.s === k ? ' on' : '') + '" data-ss="' + k + '">' + label + '</button>'; };
+    var mbtn = function (k, label) { return '<button class="chip-btn' + (SV.mode === k ? ' on' : '') + '" data-sm="' + k + '">' + label + '</button>'; };
+    var d = function (t) { var x = new Date(t); return (x.getMonth() + 1) + '월 ' + x.getDate() + '일'; };
+
+    var items = list.map(function (it) {
+      var q = it.q, st = state(it), idx = L.indexOf(it);
+      var mark = st === 'ok' ? '맞힌 문제' : (st === 'bad' ? '틀린 문제' : '답 안 고름');
+      var head = '<p class="sv-meta"><span class="sv-mark ' + st + '">' + mark + '</span>' + esc(it.src) + ' · ' + d(it.at) + ' 저장</p>';
+      var body;
+      if (SV.mode === 'retry') {
+        var t = SV.tried[it.k];
+        var opts = q.o.map(function (o, i) {
+          var cls = t === undefined ? '' : (i === q.a ? 'ok' : (i === t ? 'bad' : 'dim'));
+          return '<button class="opt ' + cls + '" data-retry="' + idx + '" data-o="' + i + '"' + (t !== undefined ? ' disabled' : '') + '><span class="opt-n">' + NUM[i] + '</span><span>' + txt(o) + '</span></button>';
+        }).join('');
+        body = '<div class="opts">' + opts + '</div>' + (t === undefined ? '' :
+          '<div class="verdict ' + (t === q.a ? 'ok' : 'bad') + '">' + (t === q.a ? '정답입니다!' : '정답은 ' + NUM[q.a] + '입니다.') + '</div>' +
+          '<div class="explain">' + explainList(q, t) + '</div>');
+      } else {
+        body = '<p class="r-line">내 답: <b>' + (st === 'none' ? '없음' : NUM[it.my]) + '</b> · 정답: <b>' + NUM[q.a] + '</b></p>' +
+          '<div class="explain">' + explainList(q, st === 'none' ? null : it.my) + '</div>';
+      }
+      return '<article class="qcard review ' + (st === 'ok' ? 'r-ok' : (st === 'bad' ? 'r-bad' : '')) + '">' + head +
+        qBody(q, SUBJ[q.subj] ? SUBJ[q.subj].name : '문제', idx) + body + '</article>';
+    }).join('');
+
+    var empty = L.length
+      ? '<p class="empty">조건에 맞는 저장한 문제가 없어요.</p>'
+      : '<div class="sv-empty"><div class="sv-empty-ic">' + ICON_SAVE + '</div><p><b>아직 저장한 문제가 없어요.</b></p>' +
+        '<p>문제 오른쪽 위의 책갈피 아이콘을 누르면 여기에 모여요. 틀린 문제나 찍어서 맞힌 문제를 저장해 두고 다시 확인해 보세요.</p></div>';
+
+    app.innerHTML =
+      '<section class="saved-view"><span class="kicker">다시 볼 문제</span><h2>저장한 문제 <small>' + L.length + '개</small></h2>' +
+      (L.length ? '<div class="filters"><div>' + fbtn('all', '전체 ' + cnt.all) + fbtn('wrong', '틀린 문제 ' + cnt.wrong) + fbtn('right', '맞힌 문제 ' + cnt.right) + '</div>' +
+        '<div>' + sbtn(0, '전 과목') + sbtn(1, '1과목') + sbtn(2, '2과목') + sbtn(3, '3과목') + '</div></div>' +
+        '<div class="filters sv-mode"><div>' + mbtn('view', '해설 보기') + mbtn('retry', '가리고 다시 풀기') + '</div>' +
+        '<div><button class="chip-btn" id="sv-clear">전체 삭제</button></div></div>' : '') +
+      (items || empty) + '</section>';
+
+    app.querySelectorAll('[data-sf]').forEach(function (b) { b.onclick = function () { SV.f = b.dataset.sf; render(true); }; });
+    app.querySelectorAll('[data-ss]').forEach(function (b) { b.onclick = function () { SV.s = +b.dataset.ss; render(true); }; });
+    app.querySelectorAll('[data-sm]').forEach(function (b) { b.onclick = function () { SV.mode = b.dataset.sm; SV.tried = {}; render(true); }; });
+    app.querySelectorAll('[data-retry]').forEach(function (b) {
+      b.onclick = function () { var it = L[+b.dataset.retry]; SV.tried[it.k] = +b.dataset.o; render(true); };
+    });
+    var clr = document.getElementById('sv-clear');
+    if (clr) clr.onclick = function () {
+      modal('저장한 문제를 모두 지울까요?', '저장한 문제 ' + L.length + '개가 모두 삭제되고 되돌릴 수 없어요.', '모두 삭제', function () { savedList().length = 0; writeSaved(); render(); });
+    };
+    /* 저장 목록에서 아이콘을 누르면 목록에서 바로 빠진다 */
+    app.querySelectorAll('[data-save]').forEach(function (b) {
+      b.onclick = function () { var it = L[+b.getAttribute('data-save')]; toggleSaved({ q: it.q }); render(true); };
+    });
   }
 
   /* ── 시작 ── */
@@ -438,7 +554,8 @@
   document.querySelector('.brand').onclick = function () { setView('home'); };
 
   var saved = loadState();
-  if (saved && ['home', 's1', 's2', 's3', 'exam', 'past'].indexOf(saved.view) >= 0) {
+  updateSavedBadge();
+  if (saved && ['home', 's1', 's2', 's3', 'exam', 'past', 'saved'].indexOf(saved.view) >= 0) {
     P = saved.P || {};
     E = saved.E || null;
     if (saved.lastSet) lastSet = saved.lastSet;

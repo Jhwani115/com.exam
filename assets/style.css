@@ -262,3 +262,29 @@ button:disabled { cursor: default; }
 /* 2026 기출 유형 */
 .intro.wide { max-width: none; }
 .ex-title { margin: 0 0 10px; font-weight: 800; font-size: 15px; color: var(--muted); }
+
+/* 다시 볼 문제 저장 */
+.q-head { position: relative; }
+.save-btn { margin-left: auto; width: 36px; height: 36px; flex: none; border: 0; background: none; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); -webkit-tap-highlight-color: transparent; }
+.save-btn svg path { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+.save-btn .ck { opacity: 0; transition: opacity .15s; }
+.save-btn.on .ck { opacity: 1; }
+.save-btn:active svg { transform: scale(.9); }
+.review .r-mark { position: static; display: block; margin: 0 0 8px; }
+.nav .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 3px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.nav button.on .badge { background: #fff; color: var(--ink); }
+.saved-view { padding: 28px 0 48px; }
+.saved-view h2 { margin: 2px 0 16px; font-size: 26px; letter-spacing: -.01em; }
+.saved-view h2 small { font-size: 16px; color: var(--muted); font-weight: 600; }
+.sv-mode { margin-top: -6px; }
+.sv-meta { margin: 0 0 10px; font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sv-mark { font-weight: 800; padding: 2px 9px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
+.sv-mark.ok { color: var(--ok); background: var(--ok-soft); border-color: transparent; }
+.sv-mark.bad { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+.sv-empty { background: var(--surface); border: 1px dashed #C9C9D0; border-radius: var(--r); padding: 36px 22px; text-align: center; color: var(--muted); }
+.sv-empty p { margin: 6px 0; }
+.sv-empty b { color: var(--ink); }
+.sv-empty-ic { width: 48px; height: 48px; margin: 0 auto 10px; border-radius: 14px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; color: var(--ink); }
+.sv-empty-ic svg path { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+.sv-empty-ic .ck { display: none; }
+.saved-view .review .opts { margin-top: 4px; }
